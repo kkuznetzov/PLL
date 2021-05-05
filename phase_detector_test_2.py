@@ -25,7 +25,7 @@ signal_frequency = 4000
 signal_length_second = 0.005
 
 # Требуемое соотношение сигнал/шум
-traget_signal_noise_ration_db = 60
+traget_signal_noise_ration_db = 600
 
 # Число отсчётов дискретизации на период сигнала
 signal_period_sample_count = signal_samplerate / signal_frequency
@@ -38,7 +38,7 @@ reference_signal_period_sample_count = reference_more_samples * signal_period_sa
 signal_length_sample_count = signal_samplerate * signal_length_second
 
 # Фаза сигнала и фаза опорного сигнала
-signal_phase = 180
+signal_phase = 10
 
 # Фаза сигналов в отсчётах дискретизации и разность фаз в отсчётах дискретизации
 signal_phase_sample    = signal_phase * signal_period_sample_count / 360

@@ -21,11 +21,14 @@ signal_samplerate = 40000
 # Частота сигнала
 signal_frequency = 4000
 
+# Число периодов сигнала на бит
+frequency_period_per_bit = 20
+
 # Длительность сигнала секунд
-signal_length_second = 0.0025
+signal_length_second = 0.05
 
 # Требуемое соотношение сигнал/шум
-traget_signal_noise_ration_db = 300
+traget_signal_noise_ration_db = 45
 
 # Число отсчётов дискретизации на период сигнала
 signal_period_sample_count = signal_samplerate / signal_frequency
@@ -38,7 +41,7 @@ reference_signal_period_sample_count = reference_more_samples * signal_period_sa
 signal_length_sample_count = signal_samplerate * signal_length_second
 
 # Фаза сигнала и фаза опорного сигнала
-signal_phase = 19
+signal_phase = 0
 
 # Фаза сигналов в отсчётах дискретизации и разность фаз в отсчётах дискретизации
 signal_phase_sample    = signal_phase * signal_period_sample_count / 360
@@ -130,11 +133,26 @@ reference_signal_phase_period_counter = 0
 multiplication_result = np.linspace(0, 0, int(signal_length_sample_count))
 output_pll = np.linspace(0, 0, int(signal_length_sample_count))
 output_pll_phase = 0
+multiplication_pll_and_input = np.linspace(0, 0, int(signal_length_sample_count))
+mean_value = 0
+mean_counter = 0
+mean_value_multiplication_pll_and_input = np.linspace(0, 0, int(signal_length_sample_count))
 for i in range(int(signal_length_sample_count)):
+    # Перемножаем вход на опорный сигнал
     multiplication_result[i] = signal_noise_data[i] * reference_signal_sin_value_period[reference_signal_phase_counter]
+    
+    # Вывод опорного сигнала для отладки
     reference_signal_sin_value[i] = reference_signal_sin_value_period[reference_signal_phase_counter]
 
+    # Формируем выходной сигнал ФАПЧ
     output_pll[i] = reference_signal_sin_value_period[output_pll_phase]
+    
+    # Перемножаем выход PLL на вход, вход PLL и опорный сигнал сдвинуты на 90 градусов
+    multiplication_pll_and_input[i] = signal_noise_data[i] * output_pll[i]
+
+    # Суммируем результаты перемножения
+    mean_value += multiplication_pll_and_input[i]
+    mean_value_multiplication_pll_and_input[i] = mean_value / signal_period_sample_count
 
     # Значения линии задержки фильтра
     for j in reversed(range(1, len(filter_delay_values))):
@@ -155,13 +173,20 @@ for i in range(int(signal_length_sample_count)):
     if reference_signal_phase_period_counter >= signal_period_sample_count:
         reference_signal_phase_period_counter = 0
         if filter_result[i] >= 0:
-            reference_signal_phase_counter += int(1 + filter_result[i] * 30)
+            reference_signal_phase_counter += int(1 + filter_result[i] * 10)
             if reference_signal_phase_counter >= reference_signal_period_sample_count:
-                reference_signal_phase_counter = 0
+                reference_signal_phase_counter = int(reference_signal_period_sample_count - reference_signal_phase_counter)
         if filter_result[i] <= -0:
-            reference_signal_phase_counter -= int(1 + filter_result[i] * 30)
+            reference_signal_phase_counter -= int(1 + filter_result[i] * 10)
             if reference_signal_phase_counter < 0:
-                reference_signal_phase_counter = int(reference_signal_period_sample_count - 1)
+                reference_signal_phase_counter = int(reference_signal_period_sample_count + reference_signal_phase_counter)
+  
+        # Счётчик усреднения по периодам
+        mean_counter += 1
+        if mean_counter >= frequency_period_per_bit:
+            mean_counter = 0
+            # Сброс результата суммирования
+            mean_value = 0
 
     output_pll_phase = reference_signal_phase_counter + int(reference_signal_period_sample_count / 4)
     if output_pll_phase >= reference_signal_period_sample_count:
@@ -170,7 +195,7 @@ for i in range(int(signal_length_sample_count)):
 
 t = np.linspace(0, int(signal_length_sample_count), int(signal_length_sample_count))
 plt.subplot(3,1,2)
-plt.plot(t, signal_sin_value, 'k', t, signal_noise_data, 'b', t, reference_signal_sin_value, 'g', t, output_pll, 'r', t, filter_result, 'm')
+plt.plot(t, signal_sin_value, 'k', t, signal_noise_data, 'b', t, reference_signal_sin_value, 'g', t, output_pll, 'r', t, mean_value_multiplication_pll_and_input, 'm')
 plt.title('Signal/Reference signal')
 plt.ylabel('Value')
 plt.xlabel('Sample')
